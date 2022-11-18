@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >0.5.0 <0.8.0;
+pragma solidity >0.5.0 <=0.8.13;
 
 // https://chenglongma.com/10/simple-keccak/
 // https://github.com/firefly/wallet/blob/master/source/libs/ethers/src/keccak256.c

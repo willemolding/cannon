@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >0.5.0 <0.8.0;
+pragma solidity >0.5.0 <=0.8.13;
 
 /**
  * @title Lib_RLPReader
@@ -403,7 +403,7 @@ library Lib_RLPReader {
             "Invalid RLP address value."
         );
 
-        return address(readUint256(_in));
+        return address(uint160(readUint256(_in)));
     }
 
     /**

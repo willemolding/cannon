@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.3;
+pragma solidity ^0.8.13;
 import "./MIPSMemory.sol";
 
 // https://inst.eecs.berkeley.edu/~cs61c/resources/MIPS_Green_Sheet.pdf
