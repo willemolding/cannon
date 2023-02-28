@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -23,6 +24,7 @@ func WriteCheckpoint(ram map[uint32](uint32), fn string, step int) {
 func main() {
 	var target int
 	var programPath string
+	var inputHash string
 	var evm bool
 	var basedir string
 	var outputGolden bool
@@ -37,6 +39,7 @@ func main() {
 	flag.IntVar(&blockNumber, "blockNumber", -1, "For state transition programs (e.g. rollups), used to create a separate subdirectory in the basedir for each block inputs/outputs and snapshots.")
 	flag.IntVar(&target, "target", -1, "Target number of instructions to execute in the trace. If < 0 will execute until termination")
 	flag.StringVar(&programPath, "program", "mipigo/minigeth.bin", "Path to binary file containing the program to run")
+	flag.StringVar(&inputHash, "inputHash", "", "The input to the execution. A hex encoded hash (32 bytes, 64 chars) which will be placed in memory location 0x30000000. If none will load the file at <root>/input")
 	flag.BoolVar(&evm, "evm", false, "If the program should be executed by a MIPS emulator running inside the EVM. This is much much slower than using the Unicorn emulator but exactly replicates the fault proving environment.")
 	flag.BoolVar(&outputGolden, "outputGolden", false, "Do not read any inputs and instead produce a snapshot of the state prior to execution. Written to <basedir>/golden.json")
 	flag.Parse()
@@ -99,7 +102,14 @@ func main() {
 			os.Exit(0)
 		}
 
-		LoadMappedFileUnicorn(mu, fmt.Sprintf("%s/input", root), ram, 0x30000000)
+		// insert the input into the golden snapshot
+		if len(inputHash) > 0 {
+			dat, err := hex.DecodeString(inputHash)
+			check(err)
+			LoadMappedDataUnicorn(mu, dat, ram, 0x30000000)
+		} else {
+			LoadMappedFileUnicorn(mu, fmt.Sprintf("%s/input", root), ram, 0x30000000)
+		}
 
 		mu.Start(0, 0x5ead0004)
 		SyncRegs(mu, ram)

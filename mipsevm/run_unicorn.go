@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
@@ -165,49 +164,14 @@ func GetHookedUnicorn(root string, ram map[uint32](uint32), callback func(int, u
 	return mu
 }
 
+// Load a file from path `fn` and write it into memory starting at the address given by `base`
 func LoadMappedFileUnicorn(mu uc.Unicorn, fn string, ram map[uint32](uint32), base uint32) {
 	dat, err := ioutil.ReadFile(fn)
 	check(err)
-	LoadData(dat, ram, base)
-	mu.MemWrite(uint64(base), dat)
+	LoadMappedDataUnicorn(mu, dat, ram, base)
 }
 
-// reimplement simple.py in go
-func RunUnicorn(fn string, ram map[uint32](uint32), checkIO bool, callback func(int, uc.Unicorn, map[uint32](uint32))) {
-	root := "/tmp/cannon/0_13284469"
-	mu := GetHookedUnicorn(root, ram, callback)
-
-	// loop forever to match EVM
-	//mu.MemMap(0x5ead0000, 0x1000)
-	//mu.MemWrite(0xdead0000, []byte{0x08, 0x10, 0x00, 0x00})
-
-	// program
-	dat, _ := ioutil.ReadFile(fn)
-	mu.MemWrite(0, dat)
-
-	// inputs
-	inputs, err := ioutil.ReadFile(fmt.Sprintf("%s/input", root))
-	check(err)
-
-	mu.MemWrite(0x30000000, inputs[0:0xc0])
-
-	// load into ram
-	LoadData(dat, ram, 0)
-	if checkIO {
-		LoadData(inputs[0:0xc0], ram, 0x30000000)
-	}
-
-	mu.Start(0, 0x5ead0004)
-
-	if checkIO {
-		outputs, err := ioutil.ReadFile(fmt.Sprintf("%s/output", root))
-		check(err)
-		real := append([]byte{0x13, 0x37, 0xf0, 0x0d}, outputs...)
-		output, _ := mu.MemRead(0x30000800, 0x44)
-		if bytes.Compare(real, output) != 0 {
-			log.Fatal("mismatch output")
-		} else {
-			fmt.Println("output match")
-		}
-	}
+func LoadMappedDataUnicorn(mu uc.Unicorn, dat []byte, ram map[uint32](uint32), base uint32) {
+	LoadData(dat, ram, base)
+	mu.MemWrite(uint64(base), dat)
 }
