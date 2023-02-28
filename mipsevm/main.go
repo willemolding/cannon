@@ -139,6 +139,8 @@ func main() {
 			fmt.Println("output match")
 		}
 
+		fmt.Printf("Output: %s\n", hex.EncodeToString(output))
+
 		WriteCheckpoint(ram, fmt.Sprintf("%s/checkpoint_final.json", root), lastStep)
 
 	}
