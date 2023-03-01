@@ -140,6 +140,7 @@ func main() {
 		}
 
 		fmt.Printf("Output: %s\n", hex.EncodeToString(output))
+		fmt.Printf("Number of MIPS instructions: %d\n", lastStep)
 
 		WriteCheckpoint(ram, fmt.Sprintf("%s/checkpoint_final.json", root), lastStep)
 
