@@ -26,6 +26,7 @@ func main() {
 	var programPath string
 	var inputHash string
 	var evm bool
+	var countOps bool
 	var basedir string
 	var outputGolden bool
 	var blockNumber int
@@ -40,6 +41,7 @@ func main() {
 	flag.IntVar(&target, "target", -1, "Target number of instructions to execute in the trace. If < 0 will execute until termination")
 	flag.StringVar(&programPath, "program", "mipigo/minigeth.bin", "Path to binary file containing the program to run")
 	flag.StringVar(&inputHash, "inputHash", "", "The input to the execution. A hex encoded hash (32 bytes, 64 chars) which will be placed in memory location 0x30000000. If none will load the file at <root>/input")
+	flag.BoolVar(&countOps, "countOps", false, "Should the MIPS emulator count how many instructions it executes? This slows down execution significantly (factor of 10)")
 	flag.BoolVar(&evm, "evm", false, "If the program should be executed by a MIPS emulator running inside the EVM. This is much much slower than using the Unicorn emulator but exactly replicates the fault proving environment.")
 	flag.BoolVar(&outputGolden, "outputGolden", false, "Do not read any inputs and instead produce a snapshot of the state prior to execution. Written to <basedir>/golden.json")
 	flag.Parse()
@@ -59,7 +61,7 @@ func main() {
 	// step 1, generate the checkpoints every million steps using unicorn
 	ram := make(map[uint32](uint32))
 
-	lastStep := 1
+	lastStep := 1 // this could be larger than an int32..
 	if evm {
 		// TODO: fix this
 		log.Fatal("EVM execution currently not supported")
@@ -72,7 +74,8 @@ func main() {
 		fn := fmt.Sprintf("%s/checkpoint_%d.json", root, lastStep)
 		WriteCheckpoint(ram, fn, lastStep)*/
 	} else {
-		mu := GetHookedUnicorn(root, ram, func(step int, mu uc.Unicorn, ram map[uint32](uint32)) {
+
+		instrCallback := func(step int, mu uc.Unicorn, ram map[uint32](uint32)) {
 			// it seems this runs before the actual step happens
 			// this can be raised to 10,000,000 if the files are too large
 			//if (target == -1 && step%10000000 == 0) || step == target {
@@ -91,7 +94,12 @@ func main() {
 				}
 			}
 			lastStep = step + 1
-		})
+		}
+		if !countOps { // No need for a callback if we are not counting the instructions
+			instrCallback = nil
+		}
+
+		mu := GetHookedUnicorn(root, ram, instrCallback)
 
 		ZeroRegisters(ram)
 		// not ready for golden yet
@@ -140,7 +148,9 @@ func main() {
 		}
 
 		fmt.Printf("Output: %s\n", hex.EncodeToString(output))
-		fmt.Printf("Number of MIPS instructions: %d\n", lastStep)
+		if countOps {
+			fmt.Printf("Number of MIPS instructions: %d\n", lastStep)
+		}
 
 		WriteCheckpoint(ram, fmt.Sprintf("%s/checkpoint_final.json", root), lastStep)
 

@@ -68,6 +68,8 @@ func SyncRegs(mu uc.Unicorn, ram map[uint32](uint32)) {
 	WriteRam(ram, REG_HEAP, uint32(heap_start))
 }
 
+
+// The callback is called after every instruction! 
 func GetHookedUnicorn(root string, ram map[uint32](uint32), callback func(int, uc.Unicorn, map[uint32](uint32))) uc.Unicorn {
 	mu, err := uc.NewUnicorn(uc.ARCH_MIPS, uc.MODE_32|uc.MODE_BIG_ENDIAN)
 	check(err)
@@ -126,34 +128,34 @@ func GetHookedUnicorn(root string, ram map[uint32](uint32), callback func(int, u
 		mu.RegWrite(uc.MIPS_REG_A3, 0)
 	}, 0, 0)
 
+	mu.HookAdd(uc.HOOK_MEM_WRITE, func(mu uc.Unicorn, access int, addr64 uint64, size int, value int64) {
+		rt := value
+		rs := addr64 & 3
+		addr := uint32(addr64 & 0xFFFFFFFC)
+		if outputfault && addr == 0x30000804 {
+			fmt.Printf("injecting output fault over %x\n", rt)
+			rt = 0xbabababa
+		}
+		//fmt.Printf("%X(%d) = %x (at step %d)\n", addr, size, value, steps)
+		if size == 1 {
+			mem := ram[addr]
+			val := uint32((rt & 0xFF) << (24 - (rs&3)*8))
+			mask := 0xFFFFFFFF ^ uint32(0xFF<<(24-(rs&3)*8))
+			WriteRam(ram, uint32(addr), (mem&mask)|val)
+		} else if size == 2 {
+			mem := ram[addr]
+			val := uint32((rt & 0xFFFF) << (16 - (rs&2)*8))
+			mask := 0xFFFFFFFF ^ uint32(0xFFFF<<(16-(rs&2)*8))
+			WriteRam(ram, uint32(addr), (mem&mask)|val)
+		} else if size == 4 {
+			WriteRam(ram, uint32(addr), uint32(rt))
+		} else {
+			log.Fatal("bad size write to ram")
+		}
+
+	}, 0, 0x80000000)
+
 	if callback != nil {
-		mu.HookAdd(uc.HOOK_MEM_WRITE, func(mu uc.Unicorn, access int, addr64 uint64, size int, value int64) {
-			rt := value
-			rs := addr64 & 3
-			addr := uint32(addr64 & 0xFFFFFFFC)
-			if outputfault && addr == 0x30000804 {
-				fmt.Printf("injecting output fault over %x\n", rt)
-				rt = 0xbabababa
-			}
-			//fmt.Printf("%X(%d) = %x (at step %d)\n", addr, size, value, steps)
-			if size == 1 {
-				mem := ram[addr]
-				val := uint32((rt & 0xFF) << (24 - (rs&3)*8))
-				mask := 0xFFFFFFFF ^ uint32(0xFF<<(24-(rs&3)*8))
-				WriteRam(ram, uint32(addr), (mem&mask)|val)
-			} else if size == 2 {
-				mem := ram[addr]
-				val := uint32((rt & 0xFFFF) << (16 - (rs&2)*8))
-				mask := 0xFFFFFFFF ^ uint32(0xFFFF<<(16-(rs&2)*8))
-				WriteRam(ram, uint32(addr), (mem&mask)|val)
-			} else if size == 4 {
-				WriteRam(ram, uint32(addr), uint32(rt))
-			} else {
-				log.Fatal("bad size write to ram")
-			}
-
-		}, 0, 0x80000000)
-
 		mu.HookAdd(uc.HOOK_CODE, func(mu uc.Unicorn, addr uint64, size uint32) {
 			callback(steps, mu, ram)
 			steps += 1
