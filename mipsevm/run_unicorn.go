@@ -68,8 +68,7 @@ func SyncRegs(mu uc.Unicorn, ram map[uint32](uint32)) {
 	WriteRam(ram, REG_HEAP, uint32(heap_start))
 }
 
-
-// The callback is called after every instruction! 
+// The callback is called after every instruction!
 func GetHookedUnicorn(root string, ram map[uint32](uint32), callback func(int, uc.Unicorn, map[uint32](uint32))) uc.Unicorn {
 	mu, err := uc.NewUnicorn(uc.ARCH_MIPS, uc.MODE_32|uc.MODE_BIG_ENDIAN)
 	check(err)
@@ -135,6 +134,9 @@ func GetHookedUnicorn(root string, ram map[uint32](uint32), callback func(int, u
 		if outputfault && addr == 0x30000804 {
 			fmt.Printf("injecting output fault over %x\n", rt)
 			rt = 0xbabababa
+		}
+		if addr == 0x30000800 && value == 0x1337f00d {
+
 		}
 		//fmt.Printf("%X(%d) = %x (at step %d)\n", addr, size, value, steps)
 		if size == 1 {

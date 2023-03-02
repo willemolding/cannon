@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
-	"flag"
 
 	uc "github.com/unicorn-engine/unicorn/bindings/go/unicorn"
 )
@@ -78,8 +78,12 @@ func main() {
 		instrCallback := func(step int, mu uc.Unicorn, ram map[uint32](uint32)) {
 			// it seems this runs before the actual step happens
 			// this can be raised to 10,000,000 if the files are too large
-			//if (target == -1 && step%10000000 == 0) || step == target {
 			// first run checkpointing is disabled for now since is isn't used
+
+			if step%10000000 == 0 {
+				fmt.Printf("Ops: %d\n", step)
+			}
+
 			if step == regfault {
 				fmt.Printf("regfault at step %d\n", step)
 				mu.RegWrite(uc.MIPS_REG_V0, 0xbabababa)
